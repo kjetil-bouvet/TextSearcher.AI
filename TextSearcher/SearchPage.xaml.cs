@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Documents;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.Web.WebView2.Core;
 using Windows.System;
 
 namespace TextSearcher;
@@ -13,12 +14,14 @@ public sealed partial class SearchPage : Page
 {
     private CancellationTokenSource? _searchCancellation;
     private string _currentQuery = string.Empty;
+    private string _pendingWebFindTerm = string.Empty;
 
     public ObservableCollection<SearchResult> Results { get; } = [];
 
     public SearchPage()
     {
         InitializeComponent();
+        PreviewWebView.NavigationCompleted += PreviewWebView_NavigationCompleted;
     }
 
     private async void SearchButton_Click(object sender, RoutedEventArgs e)
@@ -168,12 +171,34 @@ public sealed partial class SearchPage : Page
         PreviewTextBlock.Text = string.Empty;
         SourcePreviewBorder.Visibility = Visibility.Collapsed;
         WebPagePreviewBorder.Visibility = Visibility.Visible;
+        _pendingWebFindTerm = _currentQuery;
         PreviewWebView.Source = new Uri(filePath);
+    }
+
+    private async void PreviewWebView_NavigationCompleted(WebView2 sender, CoreWebView2NavigationCompletedEventArgs args)
+    {
+        if (!args.IsSuccess || string.IsNullOrEmpty(_pendingWebFindTerm) || sender.CoreWebView2 is null)
+        {
+            return;
+        }
+
+        string findTerm = _pendingWebFindTerm;
+        _pendingWebFindTerm = string.Empty;
+
+        CoreWebView2FindOptions findOptions = sender.CoreWebView2.Environment.CreateFindOptions();
+        findOptions.FindTerm = findTerm;
+        findOptions.IsCaseSensitive = false;
+        findOptions.ShouldHighlightAllMatches = true;
+        findOptions.ShouldMatchWord = false;
+        findOptions.SuppressDefaultFindDialog = false;
+
+        await sender.CoreWebView2.Find.StartAsync(findOptions);
     }
 
     private void ClearPreview(string text)
     {
         PreviewHeaderTextBlock.Text = "Preview";
+        _pendingWebFindTerm = string.Empty;
         WebPagePreviewBorder.Visibility = Visibility.Collapsed;
         SourcePreviewBorder.Visibility = Visibility.Visible;
         PreviewTextBlock.TextHighlighters.Clear();
