@@ -4,6 +4,8 @@ namespace TextSearcher;
 
 public static class SearchService
 {
+    private const int ResultContextLength = 80;
+
     private static readonly HashSet<string> TextFileExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".txt", ".log", ".csv", ".tsv", ".json", ".xml", ".html", ".htm", ".css", ".js", ".ts",
@@ -66,9 +68,10 @@ public static class SearchService
                 cancellationToken.ThrowIfCancellationRequested();
                 lineNumber++;
 
-                if (line.Contains(query, StringComparison.OrdinalIgnoreCase))
+                int matchIndex = line.IndexOf(query, StringComparison.OrdinalIgnoreCase);
+                if (matchIndex >= 0)
                 {
-                    results.Add(new SearchResult(filePath, lineNumber, line.Trim()));
+                    results.Add(new SearchResult(filePath, lineNumber, CreateResultPreview(line, matchIndex, query.Length)));
                 }
             }
         }
@@ -78,5 +81,24 @@ public static class SearchService
         catch (UnauthorizedAccessException)
         {
         }
+    }
+
+    private static string CreateResultPreview(string line, int matchIndex, int queryLength)
+    {
+        int startIndex = Math.Max(0, matchIndex - ResultContextLength);
+        int endIndex = Math.Min(line.Length, matchIndex + queryLength + ResultContextLength);
+        string preview = line[startIndex..endIndex].Trim();
+
+        if (startIndex > 0)
+        {
+            preview = "..." + preview;
+        }
+
+        if (endIndex < line.Length)
+        {
+            preview += "...";
+        }
+
+        return preview;
     }
 }
