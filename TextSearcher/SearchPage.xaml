@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Page
+    x:Class="TextSearcher.SearchPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Microsoft.UI.Xaml.Controls"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="using:TextSearcher"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <Grid Padding="24" RowSpacing="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Spacing="12">
+            <StackPanel Spacing="8">
+                <TextBlock
+                    FontSize="28"
+                    FontWeight="SemiBold"
+                    Text="Søk" />
+                <TextBlock
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Text="Søk etter tekst i mappene som er valgt på adminsiden." />
+            </StackPanel>
+
+            <Grid ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBox
+                    x:Name="SearchTextBox"
+                    Header="Søketekst"
+                    KeyDown="SearchTextBox_KeyDown"
+                    PlaceholderText="Skriv inn tekst du vil finne" />
+                <Button
+                    x:Name="SearchButton"
+                    Grid.Column="1"
+                    VerticalAlignment="Bottom"
+                    Click="SearchButton_Click"
+                    Content="Søk" />
+                <Button
+                    x:Name="CancelButton"
+                    Grid.Column="2"
+                    VerticalAlignment="Bottom"
+                    Click="CancelButton_Click"
+                    Content="Avbryt"
+                    IsEnabled="False" />
+            </Grid>
+        </StackPanel>
+
+        <Grid Grid.Row="1" ColumnSpacing="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*" />
+                <ColumnDefinition Width="3*" />
+            </Grid.ColumnDefinitions>
+
+            <ListView
+                x:Name="ResultListView"
+                ItemsSource="{x:Bind Results}"
+                SelectionChanged="ResultListView_SelectionChanged">
+                <ListView.Header>
+                    <TextBlock
+                        Margin="0,0,0,8"
+                        FontWeight="SemiBold"
+                        Text="Søkeresultater" />
+                </ListView.Header>
+                <ListView.ItemTemplate>
+                    <DataTemplate x:DataType="local:SearchResult">
+                        <Grid Padding="8" RowSpacing="4">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <TextBlock
+                                FontWeight="SemiBold"
+                                Text="{x:Bind FilePath}"
+                                TextWrapping="WrapWholeWords" />
+                            <TextBlock
+                                Grid.Row="1"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Text="{x:Bind DisplayText}"
+                                TextWrapping="WrapWholeWords" />
+                        </Grid>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+
+            <Grid Grid.Column="1" RowSpacing="8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <TextBlock
+                    x:Name="PreviewHeaderTextBlock"
+                    FontWeight="SemiBold"
+                    Text="Preview" />
+
+                <Border
+                    x:Name="SourcePreviewBorder"
+                    Grid.Row="1"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="12">
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                        <TextBlock
+                            x:Name="PreviewTextBlock"
+                            FontFamily="Consolas"
+                            IsTextSelectionEnabled="True"
+                            Text="Velg et søkeresultat for å vise filen her."
+                            TextWrapping="NoWrap" />
+                    </ScrollViewer>
+                </Border>
+
+                <Border
+                    x:Name="WebPagePreviewBorder"
+                    Grid.Row="1"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Visibility="Collapsed">
+                    <controls:WebView2
+                        x:Name="PreviewWebView"
+                        AutomationProperties.Name="Forhåndsvisning av webside"
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Stretch" />
+                </Border>
+            </Grid>
+        </Grid>
+
+        <TextBlock
+            x:Name="StatusTextBlock"
+            Grid.Row="2"
+            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+            Text="Legg til mapper på adminsiden før du søker." />
+    </Grid>
+</Page>

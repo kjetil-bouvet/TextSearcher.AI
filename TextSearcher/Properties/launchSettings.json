@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "TextSearcher (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "TextSearcher (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
