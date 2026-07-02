@@ -1,5 +1,12 @@
 namespace TextSearcher;
 
+public sealed class SearchResultGroup(string filePath, IEnumerable<SearchResult> matches)
+{
+    public string FilePath { get; set; } = filePath;
+
+    public List<SearchResult> Matches { get; set; } = [.. matches];
+}
+
 public sealed class SearchResult(string filePath, int lineNumber, string preview)
 {
     public string FilePath { get; set; } = filePath;

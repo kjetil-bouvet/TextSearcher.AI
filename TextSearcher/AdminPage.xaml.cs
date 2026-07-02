@@ -38,7 +38,7 @@ public sealed partial class AdminPage : Page
         }
 
         SearchFolders.Add(folder.Path);
-        UpdateStatus();
+        SaveSearchFolders();
     }
 
     private void RemoveFolderButton_Click(object sender, RoutedEventArgs e)
@@ -46,12 +46,35 @@ public sealed partial class AdminPage : Page
         if (FolderListView.SelectedItem is string folder)
         {
             SearchFolders.Remove(folder);
+            SaveSearchFolders();
+        }
+    }
+
+    private void SaveSearchFolders()
+    {
+        try
+        {
+            AppState.SaveSearchFolders();
             UpdateStatus();
+        }
+        catch (System.IO.IOException ex)
+        {
+            StatusTextBlock.Text = $"Kunne ikke lagre mappene: {ex.Message}";
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            StatusTextBlock.Text = $"Mangler tilgang til å lagre mappene: {ex.Message}";
         }
     }
 
     private void UpdateStatus()
     {
+        if (!string.IsNullOrEmpty(AppState.FolderPersistenceWarning))
+        {
+            StatusTextBlock.Text = AppState.FolderPersistenceWarning;
+            return;
+        }
+
         StatusTextBlock.Text = SearchFolders.Count == 0
             ? "Ingen mapper valgt."
             : $"{SearchFolders.Count} mappe(r) valgt.";

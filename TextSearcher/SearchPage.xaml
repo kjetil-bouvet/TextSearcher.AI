@@ -72,7 +72,7 @@
                         Text="Søkeresultater" />
                 </ListView.Header>
                 <ListView.ItemTemplate>
-                    <DataTemplate x:DataType="local:SearchResult">
+                    <DataTemplate x:DataType="local:SearchResultGroup">
                         <Grid Padding="8" RowSpacing="4">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
@@ -82,11 +82,39 @@
                                 FontWeight="SemiBold"
                                 Text="{x:Bind FilePath}"
                                 TextWrapping="WrapWholeWords" />
-                            <TextBlock
+                            <ItemsControl
                                 Grid.Row="1"
-                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                Text="{x:Bind DisplayText}"
-                                TextWrapping="WrapWholeWords" />
+                                ItemsSource="{x:Bind Matches}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="local:SearchResult">
+                                        <Grid Margin="12,2,0,0" ColumnSpacing="6">
+                                            <Button
+                                                Padding="8,4"
+                                                HorizontalAlignment="Stretch"
+                                                HorizontalContentAlignment="Left"
+                                                AutomationProperties.Name="{x:Bind DisplayText}"
+                                                Click="MatchButton_Click"
+                                                Style="{StaticResource TextBlockButtonStyle}"
+                                                Tag="{x:Bind}">
+                                                <Grid ColumnSpacing="6">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock
+                                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                        Text="-" />
+                                                    <TextBlock
+                                                        Grid.Column="1"
+                                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                        Text="{x:Bind DisplayText}"
+                                                        TextWrapping="WrapWholeWords" />
+                                                </Grid>
+                                            </Button>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                         </Grid>
                     </DataTemplate>
                 </ListView.ItemTemplate>
@@ -110,11 +138,15 @@
                     BorderThickness="1"
                     CornerRadius="8"
                     Padding="12">
-                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                    <ScrollViewer
+                        x:Name="PreviewScrollViewer"
+                        HorizontalScrollBarVisibility="Auto"
+                        VerticalScrollBarVisibility="Auto">
                         <TextBlock
                             x:Name="PreviewTextBlock"
                             FontFamily="Consolas"
                             IsTextSelectionEnabled="True"
+                            LineHeight="18"
                             Text="Velg et søkeresultat for å vise filen her."
                             TextWrapping="NoWrap" />
                     </ScrollViewer>

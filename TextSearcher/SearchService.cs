@@ -12,11 +12,12 @@ public static class SearchService
         ".cs", ".xaml", ".md", ".ini", ".config", ".yml", ".yaml", ".sql", ".ps1", ".bat", ".cmd"
     };
 
-    public static List<SearchResult> SearchFiles(
+    public static List<SearchResultGroup> SearchFiles(
         IReadOnlyCollection<string> folders,
         string query,
         CancellationToken cancellationToken)
     {
+        SearchExpression expression = SearchExpression.Parse(query);
         List<SearchResult> results = [];
 
         foreach (string folder in folders)
@@ -31,11 +32,19 @@ public static class SearchService
             foreach (string filePath in EnumerateTextFiles(folder))
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                SearchFile(filePath, query, results, cancellationToken);
+                SearchFile(filePath, expression, results, cancellationToken);
             }
         }
 
-        return results;
+        return results
+            .GroupBy(result => result.FilePath, StringComparer.OrdinalIgnoreCase)
+            .Select(group => new SearchResultGroup(group.Key, group))
+            .ToList();
+    }
+
+    internal static List<string> GetSearchTerms(string query)
+    {
+        return SearchExpression.Parse(query).Terms;
     }
 
     private static IEnumerable<string> EnumerateTextFiles(string folder)
@@ -54,7 +63,7 @@ public static class SearchService
 
     private static void SearchFile(
         string filePath,
-        string query,
+        SearchExpression expression,
         ICollection<SearchResult> results,
         CancellationToken cancellationToken)
     {
@@ -68,10 +77,10 @@ public static class SearchService
                 cancellationToken.ThrowIfCancellationRequested();
                 lineNumber++;
 
-                int matchIndex = line.IndexOf(query, StringComparison.OrdinalIgnoreCase);
-                if (matchIndex >= 0)
+                SearchMatch? match = expression.FindMatch(line);
+                if (match is not null)
                 {
-                    results.Add(new SearchResult(filePath, lineNumber, CreateResultPreview(line, matchIndex, query.Length)));
+                    results.Add(new SearchResult(filePath, lineNumber, CreateResultPreview(line, match.Index, match.Length)));
                 }
             }
         }
@@ -101,4 +110,78 @@ public static class SearchService
 
         return preview;
     }
+
+    private sealed class SearchExpression
+    {
+        private SearchExpression(List<List<string>> groups)
+        {
+            Groups = groups;
+            Terms = groups.SelectMany(group => group).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        }
+
+        public List<string> Terms { get; }
+
+        private List<List<string>> Groups { get; }
+
+        public static SearchExpression Parse(string query)
+        {
+            string trimmedQuery = query.Trim();
+            string[] tokens = trimmedQuery.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            bool hasOperator = tokens.Any(IsOperator);
+
+            if (!hasOperator)
+            {
+                return new SearchExpression([[trimmedQuery]]);
+            }
+
+            List<List<string>> groups = [[]];
+
+            foreach (string token in tokens)
+            {
+                if (token.Equals("OR", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (groups[^1].Count > 0)
+                    {
+                        groups.Add([]);
+                    }
+
+                    continue;
+                }
+
+                if (token.Equals("AND", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                groups[^1].Add(token);
+            }
+
+            groups = groups.Where(group => group.Count > 0).ToList();
+            return groups.Count == 0
+                ? new SearchExpression([[trimmedQuery]])
+                : new SearchExpression(groups);
+        }
+
+        public SearchMatch? FindMatch(string line)
+        {
+            if (!Groups.Any(group => group.All(term => line.Contains(term, StringComparison.OrdinalIgnoreCase))))
+            {
+                return null;
+            }
+
+            return Terms
+                .Select(term => new SearchMatch(line.IndexOf(term, StringComparison.OrdinalIgnoreCase), term.Length))
+                .Where(match => match.Index >= 0)
+                .OrderBy(match => match.Index)
+                .FirstOrDefault();
+        }
+
+        private static bool IsOperator(string token)
+        {
+            return token.Equals("AND", StringComparison.OrdinalIgnoreCase)
+                || token.Equals("OR", StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    private sealed record SearchMatch(int Index, int Length);
 }
