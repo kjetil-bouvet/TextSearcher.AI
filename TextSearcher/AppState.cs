@@ -4,6 +4,12 @@ using System.Text.Json;
 
 namespace TextSearcher;
 
+public enum HtmlSearchMode
+{
+    HtmlSource,
+    InnerText
+}
+
 public static class AppState
 {
     private static readonly string SettingsFolderPath = Path.Combine(
@@ -13,6 +19,8 @@ public static class AppState
     private static readonly string SettingsFilePath = Path.Combine(SettingsFolderPath, "settings.json");
 
     public static ObservableCollection<string> SearchFolders { get; } = [];
+
+    public static HtmlSearchMode HtmlSearchMode { get; set; } = HtmlSearchMode.HtmlSource;
 
     public static string? FolderPersistenceWarning { get; private set; }
 
@@ -27,7 +35,8 @@ public static class AppState
 
         AppSettings settings = new()
         {
-            SearchFolders = [.. SearchFolders.Distinct(StringComparer.OrdinalIgnoreCase)]
+            SearchFolders = [.. SearchFolders.Distinct(StringComparer.OrdinalIgnoreCase)],
+            HtmlSearchMode = HtmlSearchMode
         };
 
         string json = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
@@ -50,6 +59,8 @@ public static class AppState
             {
                 return;
             }
+
+            HtmlSearchMode = settings.HtmlSearchMode;
 
             foreach (string folder in settings.SearchFolders.Where(folder => !string.IsNullOrWhiteSpace(folder)))
             {
@@ -76,5 +87,7 @@ public static class AppState
     private sealed class AppSettings
     {
         public List<string> SearchFolders { get; set; } = [];
+
+        public HtmlSearchMode HtmlSearchMode { get; set; } = HtmlSearchMode.HtmlSource;
     }
 }

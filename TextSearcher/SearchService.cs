@@ -1,10 +1,13 @@
 using System.IO;
+using System.Net;
+using System.Text.RegularExpressions;
 
 namespace TextSearcher;
 
 public static class SearchService
 {
     private const int ResultContextLength = 80;
+    private static readonly Regex HtmlTagRegex = new("<[^>]+>", RegexOptions.Compiled);
 
     private static readonly HashSet<string> TextFileExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -15,6 +18,7 @@ public static class SearchService
     public static List<SearchResultGroup> SearchFiles(
         IReadOnlyCollection<string> folders,
         string query,
+        HtmlSearchMode htmlSearchMode,
         CancellationToken cancellationToken)
     {
         SearchExpression expression = SearchExpression.Parse(query);
@@ -32,7 +36,7 @@ public static class SearchService
             foreach (string filePath in EnumerateTextFiles(folder))
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                SearchFile(filePath, expression, results, cancellationToken);
+                SearchFile(filePath, expression, htmlSearchMode, results, cancellationToken);
             }
         }
 
@@ -64,24 +68,47 @@ public static class SearchService
     private static void SearchFile(
         string filePath,
         SearchExpression expression,
+        HtmlSearchMode htmlSearchMode,
         ICollection<SearchResult> results,
         CancellationToken cancellationToken)
     {
         try
         {
             using StreamReader reader = new(filePath, detectEncodingFromByteOrderMarks: true);
-            int lineNumber = 0;
+            string fileContent = reader.ReadToEnd();
 
-            while (reader.ReadLine() is { } line)
+            string searchableContent = fileContent;
+            if (htmlSearchMode == HtmlSearchMode.InnerText && IsHtmlFile(filePath))
+            {
+                searchableContent = ExtractHtmlInnerText(fileContent);
+            }
+
+            List<SearchMatch> matches = expression.FindMatches(searchableContent);
+            if (matches.Count == 0)
+            {
+                return;
+            }
+
+            int lineNumber = 1;
+            int scannedIndex = 0;
+            foreach (SearchMatch match in matches)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                lineNumber++;
 
-                SearchMatch? match = expression.FindMatch(line);
-                if (match is not null)
+                while (scannedIndex < match.Index && scannedIndex < searchableContent.Length)
                 {
-                    results.Add(new SearchResult(filePath, lineNumber, CreateResultPreview(line, match.Index, match.Length)));
+                    if (searchableContent[scannedIndex] == '\n')
+                    {
+                        lineNumber++;
+                    }
+
+                    scannedIndex++;
                 }
+
+                results.Add(new SearchResult(
+                    filePath,
+                    lineNumber,
+                    CreateResultPreview(searchableContent, match.Index, match.Length)));
             }
         }
         catch (IOException)
@@ -92,11 +119,32 @@ public static class SearchService
         }
     }
 
+    private static bool IsHtmlFile(string filePath)
+    {
+        string extension = Path.GetExtension(filePath);
+        return extension.Equals(".html", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".htm", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string ExtractHtmlInnerText(string line)
+    {
+        if (string.IsNullOrWhiteSpace(line))
+        {
+            return string.Empty;
+        }
+
+        string withoutTags = HtmlTagRegex.Replace(line, " ");
+        return WebUtility.HtmlDecode(withoutTags);
+    }
+
     private static string CreateResultPreview(string line, int matchIndex, int queryLength)
     {
         int startIndex = Math.Max(0, matchIndex - ResultContextLength);
         int endIndex = Math.Min(line.Length, matchIndex + queryLength + ResultContextLength);
-        string preview = line[startIndex..endIndex].Trim();
+        string preview = line[startIndex..endIndex]
+            .Replace("\r", " ", StringComparison.Ordinal)
+            .Replace("\n", " ", StringComparison.Ordinal)
+            .Trim();
 
         if (startIndex > 0)
         {
@@ -162,18 +210,44 @@ public static class SearchService
                 : new SearchExpression(groups);
         }
 
-        public SearchMatch? FindMatch(string line)
+        public List<SearchMatch> FindMatches(string content)
         {
-            if (!Groups.Any(group => group.All(term => line.Contains(term, StringComparison.OrdinalIgnoreCase))))
+            List<List<string>> matchingGroups = Groups
+                .Where(group => group.All(term => content.Contains(term, StringComparison.OrdinalIgnoreCase)))
+                .ToList();
+
+            if (matchingGroups.Count == 0)
             {
-                return null;
+                return [];
             }
 
-            return Terms
-                .Select(term => new SearchMatch(line.IndexOf(term, StringComparison.OrdinalIgnoreCase), term.Length))
-                .Where(match => match.Index >= 0)
+            List<string> matchingTerms = matchingGroups
+                .SelectMany(group => group)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            List<SearchMatch> matches = [];
+            foreach (string term in matchingTerms)
+            {
+                int startIndex = 0;
+                while (startIndex < content.Length)
+                {
+                    int matchIndex = content.IndexOf(term, startIndex, StringComparison.OrdinalIgnoreCase);
+                    if (matchIndex < 0)
+                    {
+                        break;
+                    }
+
+                    matches.Add(new SearchMatch(matchIndex, term.Length));
+                    startIndex = matchIndex + term.Length;
+                }
+            }
+
+            return matches
+                .GroupBy(match => new { match.Index, match.Length })
+                .Select(group => group.First())
                 .OrderBy(match => match.Index)
-                .FirstOrDefault();
+                .ToList();
         }
 
         private static bool IsOperator(string token)

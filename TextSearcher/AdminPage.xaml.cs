@@ -13,6 +13,7 @@ public sealed partial class AdminPage : Page
     public AdminPage()
     {
         InitializeComponent();
+        SetHtmlSearchModeSelection();
         UpdateStatus();
     }
 
@@ -38,7 +39,7 @@ public sealed partial class AdminPage : Page
         }
 
         SearchFolders.Add(folder.Path);
-        SaveSearchFolders();
+        SaveSettings();
     }
 
     private void RemoveFolderButton_Click(object sender, RoutedEventArgs e)
@@ -46,11 +47,28 @@ public sealed partial class AdminPage : Page
         if (FolderListView.SelectedItem is string folder)
         {
             SearchFolders.Remove(folder);
-            SaveSearchFolders();
+            SaveSettings();
         }
     }
 
-    private void SaveSearchFolders()
+    private void HtmlSearchModeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (HtmlSearchModeComboBox.SelectedItem is not ComboBoxItem { Tag: string selectedModeText }
+            || !Enum.TryParse(selectedModeText, out HtmlSearchMode selectedMode))
+        {
+            return;
+        }
+
+        if (AppState.HtmlSearchMode == selectedMode)
+        {
+            return;
+        }
+
+        AppState.HtmlSearchMode = selectedMode;
+        SaveSettings();
+    }
+
+    private void SaveSettings()
     {
         try
         {
@@ -77,6 +95,25 @@ public sealed partial class AdminPage : Page
 
         StatusTextBlock.Text = SearchFolders.Count == 0
             ? "Ingen mapper valgt."
-            : $"{SearchFolders.Count} mappe(r) valgt.";
+            : $"{SearchFolders.Count} mappe(r) valgt. HTML-søk: {GetHtmlSearchModeDisplayText(AppState.HtmlSearchMode)}.";
+    }
+
+    private void SetHtmlSearchModeSelection()
+    {
+        string selectedTag = AppState.HtmlSearchMode.ToString();
+        ComboBoxItem? selectedItem = HtmlSearchModeComboBox.Items
+            .OfType<ComboBoxItem>()
+            .FirstOrDefault(item => string.Equals(item.Tag as string, selectedTag, StringComparison.Ordinal));
+        if (selectedItem is not null)
+        {
+            HtmlSearchModeComboBox.SelectedItem = selectedItem;
+        }
+    }
+
+    private static string GetHtmlSearchModeDisplayText(HtmlSearchMode mode)
+    {
+        return mode == HtmlSearchMode.InnerText
+            ? "innerText"
+            : "HTML-kilde";
     }
 }

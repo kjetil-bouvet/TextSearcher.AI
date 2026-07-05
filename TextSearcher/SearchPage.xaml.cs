@@ -77,7 +77,11 @@ public sealed partial class SearchPage : Page
         try
         {
             List<SearchResultGroup> results = await Task.Run(
-                () => SearchService.SearchFiles(AppState.SearchFolders.ToArray(), query, cancellationToken),
+                () => SearchService.SearchFiles(
+                    AppState.SearchFolders.ToArray(),
+                    query,
+                    AppState.HtmlSearchMode,
+                    cancellationToken),
                 cancellationToken);
 
             foreach (SearchResultGroup result in results)
@@ -126,10 +130,11 @@ public sealed partial class SearchPage : Page
         PreviewHeaderTextBlock.Text = filePath;
 
         bool isSameFile = filePath.Equals(_currentPreviewFilePath, StringComparison.OrdinalIgnoreCase);
+        bool showHtmlAsWebPage = IsWebPageFile(filePath) && AppState.HtmlSearchMode == HtmlSearchMode.HtmlSource;
 
         try
         {
-            if (IsWebPageFile(filePath))
+            if (showHtmlAsWebPage)
             {
                 if (isSameFile && match is not null)
                 {
@@ -154,6 +159,11 @@ public sealed partial class SearchPage : Page
             }
 
             string content = await File.ReadAllTextAsync(filePath);
+            if (IsWebPageFile(filePath) && AppState.HtmlSearchMode == HtmlSearchMode.InnerText)
+            {
+                content = ExtractHtmlInnerText(content);
+            }
+
             _currentPreviewFilePath = filePath;
             ShowPreview(content, _currentQuery);
             if (match is not null)
@@ -176,6 +186,17 @@ public sealed partial class SearchPage : Page
         string extension = Path.GetExtension(filePath);
         return extension.Equals(".html", StringComparison.OrdinalIgnoreCase)
             || extension.Equals(".htm", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string ExtractHtmlInnerText(string content)
+    {
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            return string.Empty;
+        }
+
+        string withoutTags = System.Text.RegularExpressions.Regex.Replace(content, "<[^>]+>", " ");
+        return System.Net.WebUtility.HtmlDecode(withoutTags);
     }
 
     private void ShowPreview(string content, string query)

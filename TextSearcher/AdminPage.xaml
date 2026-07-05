@@ -11,6 +11,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
@@ -34,9 +35,20 @@
                 Content="Fjern valgt" />
         </StackPanel>
 
+        <ComboBox
+            x:Name="HtmlSearchModeComboBox"
+            Grid.Row="2"
+            AutomationProperties.AutomationId="HtmlSearchModeComboBox"
+            AutomationProperties.Name="HTML-søkemodus"
+            Header="HTML-søk"
+            SelectionChanged="HtmlSearchModeComboBox_SelectionChanged">
+            <ComboBoxItem Content="Søk i HTML-kilde" Tag="HtmlSource" />
+            <ComboBoxItem Content="Søk i innerText" Tag="InnerText" />
+        </ComboBox>
+
         <ListView
             x:Name="FolderListView"
-            Grid.Row="2"
+            Grid.Row="3"
             ItemsSource="{x:Bind SearchFolders}">
             <ListView.ItemTemplate>
                 <DataTemplate>
@@ -47,7 +59,7 @@
 
         <TextBlock
             x:Name="StatusTextBlock"
-            Grid.Row="3"
+            Grid.Row="4"
             Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
     </Grid>
 </Page>
