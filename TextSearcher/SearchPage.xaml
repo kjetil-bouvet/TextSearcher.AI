@@ -140,7 +140,7 @@
                     Padding="12">
                     <ScrollViewer
                         x:Name="PreviewScrollViewer"
-                        HorizontalScrollBarVisibility="Auto"
+                        HorizontalScrollBarVisibility="Disabled"
                         VerticalScrollBarVisibility="Auto">
                         <TextBlock
                             x:Name="PreviewTextBlock"
