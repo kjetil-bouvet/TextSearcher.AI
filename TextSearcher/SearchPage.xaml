@@ -148,7 +148,7 @@
                             IsTextSelectionEnabled="True"
                             LineHeight="18"
                             Text="Velg et søkeresultat for å vise filen her."
-                            TextWrapping="NoWrap" />
+                            TextWrapping="Wrap" />
                     </ScrollViewer>
                 </Border>
 
