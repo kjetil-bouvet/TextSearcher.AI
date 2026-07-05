@@ -19,6 +19,7 @@ public static class SearchService
         IReadOnlyCollection<string> folders,
         string query,
         HtmlSearchMode htmlSearchMode,
+        IProgress<SearchResult>? progress,
         CancellationToken cancellationToken)
     {
         SearchExpression expression = SearchExpression.Parse(query);
@@ -36,7 +37,7 @@ public static class SearchService
             foreach (string filePath in EnumerateTextFiles(folder))
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                SearchFile(filePath, expression, htmlSearchMode, results, cancellationToken);
+                SearchFile(filePath, expression, htmlSearchMode, results, progress, cancellationToken);
             }
         }
 
@@ -70,6 +71,7 @@ public static class SearchService
         SearchExpression expression,
         HtmlSearchMode htmlSearchMode,
         ICollection<SearchResult> results,
+        IProgress<SearchResult>? progress,
         CancellationToken cancellationToken)
     {
         try
@@ -105,10 +107,12 @@ public static class SearchService
                     scannedIndex++;
                 }
 
-                results.Add(new SearchResult(
+                SearchResult result = new(
                     filePath,
                     lineNumber,
-                    CreateResultPreview(searchableContent, match.Index, match.Length)));
+                    CreateResultPreview(searchableContent, match.Index, match.Length));
+                results.Add(result);
+                progress?.Report(result);
             }
         }
         catch (IOException)

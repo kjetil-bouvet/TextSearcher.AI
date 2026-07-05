@@ -1,10 +1,12 @@
+using System.Collections.ObjectModel;
+
 namespace TextSearcher;
 
 public sealed class SearchResultGroup(string filePath, IEnumerable<SearchResult> matches)
 {
     public string FilePath { get; set; } = filePath;
 
-    public List<SearchResult> Matches { get; set; } = [.. matches];
+    public ObservableCollection<SearchResult> Matches { get; set; } = [.. matches];
 }
 
 public sealed class SearchResult(string filePath, int lineNumber, string preview)

@@ -21,6 +21,7 @@ public sealed partial class SearchPage : Page
     private string _currentPreviewFilePath = string.Empty;
     private List<string> _pendingWebHighlightTerms = [];
     private List<string> _currentSearchTerms = [];
+    private readonly Dictionary<string, SearchResultGroup> _resultGroupsByFilePath = new(StringComparer.OrdinalIgnoreCase);
     private bool _webViewInitialized;
 
     public ObservableCollection<SearchResultGroup> Results { get; } = [];
@@ -67,10 +68,12 @@ public sealed partial class SearchPage : Page
 
         _currentQuery = query;
         _currentSearchTerms = SearchService.GetSearchTerms(query);
+        _resultGroupsByFilePath.Clear();
         Results.Clear();
         ClearPreview("Velg et søkeresultat for å vise filen her.");
         _searchCancellation = new CancellationTokenSource();
         CancellationToken cancellationToken = _searchCancellation.Token;
+        Progress<SearchResult> progress = new(AddSearchResult);
 
         SetSearchingState(true, "Søker...");
 
@@ -81,13 +84,9 @@ public sealed partial class SearchPage : Page
                     AppState.SearchFolders.ToArray(),
                     query,
                     AppState.HtmlSearchMode,
+                    progress,
                     cancellationToken),
                 cancellationToken);
-
-            foreach (SearchResultGroup result in results)
-            {
-                Results.Add(result);
-            }
 
             int matchCount = results.Sum(result => result.Matches.Count);
             StatusTextBlock.Text = results.Count == 0
@@ -424,5 +423,17 @@ public sealed partial class SearchPage : Page
         SearchButton.IsEnabled = !isSearching;
         CancelButton.IsEnabled = isSearching;
         StatusTextBlock.Text = status;
+    }
+
+    private void AddSearchResult(SearchResult result)
+    {
+        if (!_resultGroupsByFilePath.TryGetValue(result.FilePath, out SearchResultGroup? group))
+        {
+            group = new SearchResultGroup(result.FilePath, []);
+            _resultGroupsByFilePath[result.FilePath] = group;
+            Results.Add(group);
+        }
+
+        group.Matches.Add(result);
     }
 }
