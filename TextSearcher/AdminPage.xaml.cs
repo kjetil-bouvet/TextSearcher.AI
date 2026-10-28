@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Automation;
 using Windows.Storage.Pickers;
 using WinRT.Interop;
 
@@ -9,10 +10,12 @@ namespace TextSearcher;
 public sealed partial class AdminPage : Page
 {
     public ObservableCollection<string> SearchFolders => AppState.SearchFolders;
+    public ObservableCollection<string> TextFileExtensions => AppState.TextFileExtensions;
 
     public AdminPage()
     {
         InitializeComponent();
+        BuildExtensionCheckBoxes();
         SetHtmlSearchModeSelection();
         UpdateStatus();
     }
@@ -51,6 +54,28 @@ public sealed partial class AdminPage : Page
         }
     }
 
+    private void ExtensionCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        if (sender is not CheckBox { Tag: string extension, IsChecked: bool isChecked })
+        {
+            return;
+        }
+
+        if (isChecked)
+        {
+            if (!TextFileExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase))
+            {
+                TextFileExtensions.Add(extension);
+            }
+        }
+        else
+        {
+            TextFileExtensions.Remove(extension);
+        }
+
+        SaveSettings();
+    }
+
     private void HtmlSearchModeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (HtmlSearchModeComboBox.SelectedItem is not ComboBoxItem { Tag: string selectedModeText }
@@ -77,11 +102,11 @@ public sealed partial class AdminPage : Page
         }
         catch (System.IO.IOException ex)
         {
-            StatusTextBlock.Text = $"Kunne ikke lagre mappene: {ex.Message}";
+            StatusTextBlock.Text = $"Kunne ikke lagre innstillingene: {ex.Message}";
         }
         catch (UnauthorizedAccessException ex)
         {
-            StatusTextBlock.Text = $"Mangler tilgang til å lagre mappene: {ex.Message}";
+            StatusTextBlock.Text = $"Mangler tilgang til å lagre innstillingene: {ex.Message}";
         }
     }
 
@@ -95,7 +120,7 @@ public sealed partial class AdminPage : Page
 
         StatusTextBlock.Text = SearchFolders.Count == 0
             ? "Ingen mapper valgt."
-            : $"{SearchFolders.Count} mappe(r) valgt. HTML-søk: {GetHtmlSearchModeDisplayText(AppState.HtmlSearchMode)}.";
+            : $"{SearchFolders.Count} mappe(r) valgt. Filtyper: {TextFileExtensions.Count}. HTML-søk: {GetHtmlSearchModeDisplayText(AppState.HtmlSearchMode)}.";
     }
 
     private void SetHtmlSearchModeSelection()
@@ -115,5 +140,28 @@ public sealed partial class AdminPage : Page
         return mode == HtmlSearchMode.InnerText
             ? "innerText"
             : "HTML-kilde";
+    }
+
+    private void BuildExtensionCheckBoxes()
+    {
+        ExtensionCheckBoxPanel.Children.Clear();
+
+        foreach (string extension in AppState.AvailableTextFileExtensions)
+        {
+            CheckBox checkBox = new()
+            {
+                Content = extension,
+                Tag = extension,
+                IsChecked = TextFileExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase)
+            };
+
+            AutomationProperties.SetAutomationId(checkBox, $"TextFileExtension_{extension[1..]}");
+            AutomationProperties.SetName(checkBox, $"Filtype {extension}");
+
+            checkBox.Checked += ExtensionCheckBox_Changed;
+            checkBox.Unchecked += ExtensionCheckBox_Changed;
+
+            ExtensionCheckBoxPanel.Children.Add(checkBox);
+        }
     }
 }

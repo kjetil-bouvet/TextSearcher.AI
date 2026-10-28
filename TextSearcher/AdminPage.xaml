@@ -12,6 +12,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
@@ -46,9 +47,29 @@
             <ComboBoxItem Content="Søk i innerText" Tag="InnerText" />
         </ComboBox>
 
+        <StackPanel Grid.Row="3" Spacing="8">
+            <TextBlock
+                Text="Velg hvilke av de opprinnelige filtypene som skal inkluderes i søket."
+                TextWrapping="Wrap" />
+            <ScrollViewer
+                MaxHeight="240"
+                HorizontalScrollMode="Disabled"
+                HorizontalScrollBarVisibility="Disabled"
+                VerticalScrollMode="Auto"
+                VerticalScrollBarVisibility="Auto">
+                <VariableSizedWrapGrid
+                    x:Name="ExtensionCheckBoxPanel"
+                    AutomationProperties.AutomationId="ExtensionCheckBoxPanel"
+                    AutomationProperties.Name="Filtyper som kan velges"
+                    ItemHeight="40"
+                    ItemWidth="120"
+                    Orientation="Horizontal" />
+            </ScrollViewer>
+        </StackPanel>
+
         <ListView
             x:Name="FolderListView"
-            Grid.Row="3"
+            Grid.Row="4"
             ItemsSource="{x:Bind SearchFolders}">
             <ListView.ItemTemplate>
                 <DataTemplate>
@@ -59,7 +80,7 @@
 
         <TextBlock
             x:Name="StatusTextBlock"
-            Grid.Row="4"
+            Grid.Row="5"
             Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
     </Grid>
 </Page>

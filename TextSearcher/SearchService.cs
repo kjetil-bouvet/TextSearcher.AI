@@ -9,21 +9,27 @@ public static class SearchService
     private const int ResultContextLength = 80;
     private static readonly Regex HtmlTagRegex = new("<[^>]+>", RegexOptions.Compiled);
 
-    private static readonly HashSet<string> TextFileExtensions = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".txt", ".log", ".csv", ".tsv", ".json", ".xml", ".html", ".htm", ".css", ".js", ".ts",
-        ".cs", ".xaml", ".md", ".ini", ".config", ".yml", ".yaml", ".sql", ".ps1", ".bat", ".cmd"
-    };
-
     public static List<SearchResultGroup> SearchFiles(
         IReadOnlyCollection<string> folders,
         string query,
+        IReadOnlyCollection<string> textFileExtensions,
         HtmlSearchMode htmlSearchMode,
         IProgress<SearchResult>? progress,
         CancellationToken cancellationToken)
     {
         SearchExpression expression = SearchExpression.Parse(query);
         List<SearchResult> results = [];
+        HashSet<string> textFileExtensionLookup = new(
+            textFileExtensions
+                .Select(TryNormalizeTextFileExtension)
+                .Where(extension => extension is not null)
+                .Cast<string>(),
+            StringComparer.OrdinalIgnoreCase);
+
+        if (textFileExtensionLookup.Count == 0)
+        {
+            return [];
+        }
 
         foreach (string folder in folders)
         {
@@ -34,7 +40,7 @@ public static class SearchService
                 continue;
             }
 
-            foreach (string filePath in EnumerateTextFiles(folder))
+            foreach (string filePath in EnumerateTextFiles(folder, textFileExtensionLookup))
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 SearchFile(filePath, expression, htmlSearchMode, results, progress, cancellationToken);
@@ -52,7 +58,7 @@ public static class SearchService
         return SearchExpression.Parse(query).Terms;
     }
 
-    private static IEnumerable<string> EnumerateTextFiles(string folder)
+    private static IEnumerable<string> EnumerateTextFiles(string folder, IReadOnlySet<string> textFileExtensions)
     {
         EnumerationOptions options = new()
         {
@@ -63,7 +69,7 @@ public static class SearchService
 
         return Directory
             .EnumerateFiles(folder, "*", options)
-            .Where(filePath => TextFileExtensions.Contains(Path.GetExtension(filePath)));
+            .Where(filePath => textFileExtensions.Contains(Path.GetExtension(filePath)));
     }
 
     private static void SearchFile(
@@ -128,6 +134,22 @@ public static class SearchService
         string extension = Path.GetExtension(filePath);
         return extension.Equals(".html", StringComparison.OrdinalIgnoreCase)
             || extension.Equals(".htm", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string? TryNormalizeTextFileExtension(string? extension)
+    {
+        if (string.IsNullOrWhiteSpace(extension))
+        {
+            return null;
+        }
+
+        string normalizedExtension = extension.Trim();
+        if (!normalizedExtension.StartsWith(".", StringComparison.Ordinal))
+        {
+            normalizedExtension = $".{normalizedExtension}";
+        }
+
+        return normalizedExtension.ToLowerInvariant();
     }
 
     private static string ExtractHtmlInnerText(string line)

@@ -66,6 +66,12 @@ public sealed partial class SearchPage : Page
             return;
         }
 
+        if (AppState.TextFileExtensions.Count == 0)
+        {
+            StatusTextBlock.Text = "Legg til minst én filtype på adminsiden først.";
+            return;
+        }
+
         _currentQuery = query;
         _currentSearchTerms = SearchService.GetSearchTerms(query);
         _resultGroupsByFilePath.Clear();
@@ -83,6 +89,7 @@ public sealed partial class SearchPage : Page
                 () => SearchService.SearchFiles(
                     AppState.SearchFolders.ToArray(),
                     query,
+                    AppState.TextFileExtensions.ToArray(),
                     AppState.HtmlSearchMode,
                     progress,
                     cancellationToken),

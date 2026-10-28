@@ -12,6 +12,15 @@ public enum HtmlSearchMode
 
 public static class AppState
 {
+    private static readonly string[] DefaultTextFileExtensions =
+    [
+        ".txt", ".log", ".csv", ".tsv", ".json", ".xml", ".html", ".htm", ".css", ".js", ".ts",
+        ".cs", ".xaml", ".md", ".ini", ".config", ".yml", ".yaml", ".sql", ".ps1", ".bat", ".cmd"
+    ];
+    private static readonly HashSet<string> DefaultTextFileExtensionLookup = new(
+        DefaultTextFileExtensions,
+        StringComparer.OrdinalIgnoreCase);
+
     private static readonly string SettingsFolderPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "TextSearcher");
@@ -19,6 +28,10 @@ public static class AppState
     private static readonly string SettingsFilePath = Path.Combine(SettingsFolderPath, "settings.json");
 
     public static ObservableCollection<string> SearchFolders { get; } = [];
+
+    public static ObservableCollection<string> TextFileExtensions { get; } = [.. DefaultTextFileExtensions];
+
+    public static IReadOnlyList<string> AvailableTextFileExtensions => DefaultTextFileExtensions;
 
     public static HtmlSearchMode HtmlSearchMode { get; set; } = HtmlSearchMode.HtmlSource;
 
@@ -33,10 +46,19 @@ public static class AppState
     {
         Directory.CreateDirectory(SettingsFolderPath);
 
+        List<string> normalizedExtensions = TextFileExtensions
+            .Select(TryNormalizeTextFileExtension)
+            .Where(extension => extension is not null)
+            .Cast<string>()
+            .Where(extension => DefaultTextFileExtensionLookup.Contains(extension))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
         AppSettings settings = new()
         {
             SearchFolders = [.. SearchFolders.Distinct(StringComparer.OrdinalIgnoreCase)],
-            HtmlSearchMode = HtmlSearchMode
+            HtmlSearchMode = HtmlSearchMode,
+            TextFileExtensions = normalizedExtensions
         };
 
         string json = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
@@ -69,6 +91,24 @@ public static class AppState
                     SearchFolders.Add(folder);
                 }
             }
+
+            if (settings.TextFileExtensions is null)
+            {
+                return;
+            }
+
+            List<string> normalizedExtensions = settings.TextFileExtensions
+                .Select(TryNormalizeTextFileExtension)
+                .Where(extension => extension is not null)
+                .Cast<string>()
+                .Where(extension => DefaultTextFileExtensionLookup.Contains(extension))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            TextFileExtensions.Clear();
+            foreach (string extension in normalizedExtensions)
+            {
+                TextFileExtensions.Add(extension);
+            }
         }
         catch (IOException)
         {
@@ -84,10 +124,34 @@ public static class AppState
         }
     }
 
+    internal static bool TryNormalizeTextFileExtension(string? extension, out string normalizedExtension)
+    {
+        normalizedExtension = TryNormalizeTextFileExtension(extension) ?? string.Empty;
+        return !string.IsNullOrEmpty(normalizedExtension);
+    }
+
+    private static string? TryNormalizeTextFileExtension(string? extension)
+    {
+        if (string.IsNullOrWhiteSpace(extension))
+        {
+            return null;
+        }
+
+        string normalizedExtension = extension.Trim();
+        if (!normalizedExtension.StartsWith(".", StringComparison.Ordinal))
+        {
+            normalizedExtension = $".{normalizedExtension}";
+        }
+
+        return normalizedExtension.ToLowerInvariant();
+    }
+
     private sealed class AppSettings
     {
         public List<string> SearchFolders { get; set; } = [];
 
         public HtmlSearchMode HtmlSearchMode { get; set; } = HtmlSearchMode.HtmlSource;
+
+        public List<string>? TextFileExtensions { get; set; }
     }
 }
