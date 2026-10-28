@@ -82,8 +82,7 @@ public static class SearchService
     {
         try
         {
-            using StreamReader reader = new(filePath, detectEncodingFromByteOrderMarks: true);
-            string fileContent = reader.ReadToEnd();
+            string fileContent = TextFileReader.ReadAllText(filePath);
 
             string searchableContent = fileContent;
             if (htmlSearchMode == HtmlSearchMode.InnerText && IsHtmlFile(filePath))

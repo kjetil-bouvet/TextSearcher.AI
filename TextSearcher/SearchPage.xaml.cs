@@ -164,7 +164,7 @@ public sealed partial class SearchPage : Page
                 return;
             }
 
-            string content = await File.ReadAllTextAsync(filePath);
+            string content = await TextFileReader.ReadAllTextAsync(filePath);
             if (IsWebPageFile(filePath) && AppState.HtmlSearchMode == HtmlSearchMode.InnerText)
             {
                 content = ExtractHtmlInnerText(content);
@@ -261,7 +261,7 @@ public sealed partial class SearchPage : Page
         string html;
         try
         {
-            html = await File.ReadAllTextAsync(filePath);
+            html = await TextFileReader.ReadAllTextAsync(filePath);
         }
         catch (IOException ex)
         {
